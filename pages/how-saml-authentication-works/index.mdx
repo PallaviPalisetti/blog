@@ -1,7 +1,7 @@
 ---
-title: SAML 2.0 | How SAML 2.0 Authentication Works?
+title: How SAML Authentication Works?
 articleTitle: How SAML 2.0 Authentication Works?
-description: Learn what SAML 2.0 Authentication is and how it works. SAML implements corporate single sign-on (SSO) solutions for centralized identity management.
+description: At its core, Security Assertion Markup Language (SAML) 2.0 is a means to exchange authorization and authentication information between services. Learn how saml works.
 date: "2021-04-13"
 author: Russell Jones
 tags:
@@ -18,7 +18,7 @@ _This article was originally published on July 29th, 2019._
 ## What is SAML 2.0?
 
 Security Assertion Markup Language (SAML) 2.0 is one of the most widely used open standard for authentication and authorizing between
-multiple parties. It's one of the protocol that give users the single sign-on (SSO) experience for applications. The other adopted open
+multiple parties. SAML is an open protocol that give users the single sign-on (SSO) experience for applications. The other adopted open
 standard is [OAuth](https://goteleport.com/blog/how-oauth-authentication-works/) and
 [OpenID](https://goteleport.com/blog/how-oidc-authentication-works/). Of the two, SAML 2.0, released in 2005, remains the 800 pound gorilla
 in Enterprise SSO space. This post provides a detailed introduction on how SAML works
@@ -40,6 +40,15 @@ The advantage of adopting SAML/SSO from a security perspective are clear:
 
 This particular post will be focused on providing an overview of the how and
 why of SSO and SAML.
+
+### Listen to this blog post
+<iframe
+  src="https://protocol.podigee.io/5-how-saml-20-authentication-works/embed?context=external&theme=default"
+  style="border: 0"
+  border="0"
+  height="150px"
+  width="100%"
+/>
 
 ## SAML Terminology
 
@@ -83,7 +92,7 @@ to request additional identity information about a principal, usually to impleme
 [role-based access control (RBAC)](https://goteleport.com/blog/access-controls/).
 
 Examples of such applications include Github, Google Apps.
-[Teleport](https://goteleport.com/), our SSH and Kubernetes access solution, is also a
+[Teleport](https://goteleport.com/), our access plane solution, is also a
 service provider.
 
 ### Flows
@@ -138,8 +147,8 @@ The SAML Login flow is shown on the diagram below:
    as principal from now on.
 2. Auth0 asks the user for their username or email, their password and the second
    factor (2FA) authentication token.
-3. If the supplied information is correct, Auth0 takes principal's identity
-   information and returns it back to Teleport as _assertions_.
+3. If the supplied information is correct, Auth0 will authenticate the user and take the 
+   principal's identity and returns it back to Teleport as _assertions_.
 4. Teleport receives the identity information from Auth0 and this allows it to
    create a user session.
 
@@ -159,7 +168,7 @@ provider. Simplified identity provider metadata XML is shown in Figure (2) below
 to, and the `KeyDescriptor` tag contains the [public key](https://goteleport.com/blog/comparing-ssh-keys/) of the identity provider
 which will be used to validate the authentication response.
 
-```
+```xml
 <md:EntityDescriptor>
   <md:IDPSSODescriptor>
     <md:KeyDescriptor use="signing">
@@ -213,7 +222,7 @@ The `AuthnRequest` is often sent using HTTP Redirect Binding, and ends up lookin
 
 Where the SAMLRequest parameter is the encoded `AuthnRequest`, a simplified `AuthnRequest` follows.
 
-```
+```xml
 <samlp:AuthnRequest
 AssertionConsumerServiceURL="https://sp.example.com/saml/acs"
 Destination="https://idp.example.com/saml"
@@ -305,7 +314,7 @@ https://sp.example.com/saml/acs
 
 A simplified `SAMLResponse` would look like the following:
 
-```
+```xml
 <saml2p:Response
 Destination="https://sp.example.com/saml/acs"
 ID="id35287812421219341967493380"
@@ -481,6 +490,22 @@ assertions or sessions is, in general, a security risk. Keep assertions and
 sessions reasonably short lived and force re-authentication to ensure that any
 assertions that the identity provider made about the principal are still valid.
 
+## Adding SAML based SSO to your app.
+
+This post was a deep dive into how SAML authentication works, but luckily developers
+can use open-source libraries to quickly and easily add SAML to applications.
+
+These are a few top libraries for adding SAML to your app.
+- For Node.js try [node-saml](https://www.npmjs.com/package/saml)
+- For PHP Apps try [simpleSAML](https://simplesamlphp.org/)
+- For Ruby & Rails Apps try [ruby-saml](https://rubygems.org/gems/ruby-saml) 
+- For GoLang Apps try [SAML](https://github.com/crewjam/saml)
+- For Django Apps try [django-saml2-auth](https://github.com/fangli/django-saml2-auth)
+
+The above list is a starting off point for adding SAML to your application. Since a 
+SAML library is key for authentication it's important to pick a library which is being 
+maintained and has mitigated any possible security issues or CVEs. 
+
 <EmailSubscribeViolet />
 
 ## Conclusion
@@ -500,14 +525,14 @@ Generally, SAML authentication solves three important problems:
 
 - SAML offers significant improvement to user experience. Users only have to
   remember their credentials with a single identity provider and not having to
-  worry about usersnames and passwords for every application they use.
+  worry about user names and passwords for every application they use.
 - SAML allows application developers to outsource identity management and
   authentication implementation to external providers and not having to
   implement it themselves.
 - And perhaps most importantly, SAML dramatically reduces the operational
   overhead of managing access within an organization. If an employee leaves or
   transfers to another team, their access will be automatically revoked or
-  downgraded across all appliations connected to the identity provider.
+  downgraded across all applications connected to the identity provider.
 
 Hopefully that provides a good snapshot of how SAML works. If you’d like to
 learn more about how we integrate with various SSO services you can read more
