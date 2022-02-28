@@ -1,7 +1,7 @@
 ---
 articleTitle: SSH Tunneling Explained
-description: This post explains SSH Tunneling and covers different tunneling features as supported by OpenSSH, which helps achieve security use cases such as remote web service access without exposing port on the internet, accessing server behind NAT, exposing local port to the internet.
-title: What is SSH Tunneling, SSH Reverse Tunneling and SSH Port Forwarding?
+description: SSH tunneling is a method to transport additional data streams within an existing SSH session. This post explains different SSH Tunneling techniques and features as supported by OpenSSH.
+title: What is SSH Tunnel, SSH Reverse Tunnel and SSH Port Forwarding?
 date: "2021-10-08"
 author: Sakshyam Shah
 logo:
@@ -23,32 +23,25 @@ import { EmailSubscribeViolet } from "components/EmailSubscribe";
   width="100%"
 />
 
-Although the typical use case of SSH is to access a remote server securely, you can also transfer files, forward local and remote ports,
-mount remote directories, redirect GUI, or even proxy arbitrary traffic (need I say SSH is awesome?). And this is just a small set of what's
-possible with SSH.
+Although the typical use case of SSH is to access a remote server securely, you can also transfer files, forward local and remote ports, mount remote directories, redirect GUI, or even proxy arbitrary traffic (need I say SSH is awesome?). And this is just a small set of what's possible with SSH.
 
-In this post, I'll cover different tunneling features as supported by OpenSSH, which helps achieve security use cases such as remote web
-service access without exposing ports on the internet, accessing servers behind NAT, exposing local ports to the internet. OpenSSH is the
-most widely used open-source SSH server. It comes pre-installed by default with the vast majority of Linux distributions.
+In this post, I'll cover different tunneling features as supported by OpenSSH, which helps achieve security use cases such as remote web service access without exposing ports on the internet, accessing servers behind NAT, exposing local ports to the internet. OpenSSH is the most widely used open-source SSH server. It comes pre-installed by default with the vast majority of Linux distributions.
 
-If you are looking for a modern open-source alternative to OpenSSH that is optimized for elastic multi-cloud environments and supports other
-access protocols in addition to SSH, make sure to check out [Teleport](https://goteleport.com).
+If you are looking for a modern open-source alternative to OpenSSH that is optimized for elastic multi-cloud environments and supports other access protocols in addition to SSH, make sure to check out [Teleport](https://goteleport.com).
 
 Now let's begin!
 
-## What is SSH tunnelling?
+## What is SSH tunneling?
+SSH tunneling is a method to transport additional data streams within an existing SSH session. SSH tunneling helps achieve security use cases such as remote web service access without exposing port on the internet, accessing server behind NAT, exposing local port to the internet.
 
-SSH tunneling entails transporting an additional data stream within an existing SSH session.
+
+## How does the SSH tunnel work?
+When you connect to a server using SSH, you get a server's shell. This is the default behavior of an SSH connection. Under the hood, your SSH client creates an encrypted session between your SSH client and the SSH server. But the data transported within the SSH session can be of any type. For example, during shell access, the data transmitted are binary streams detailing dimensions of pseudo-terminal and ASCII characters to run commands on the remote shell. However, during SSH port forwarding, the data transmitted can be a binary stream of protocol tunneled over SSH (e.g. SQL over SSH).
+
 
 <BlogImage src="./assets/ssh-tunnel.png" />
 
 <figcaption>Fig: An SSH session.</figcaption>
-
-When you connect to a server using SSH, you get a server's shell. This is the default behavior of an SSH connection. Under the hood, your
-SSH client creates an encrypted session between your SSH client and the SSH server. But the data transported within the SSH session can be
-of any type. For example, during shell access, the data transmitted are binary streams detailing dimensions of pseudo-terminal and ASCII
-characters to run commands on the remote shell. However, during SSH port forwarding, the data transmitted can be a binary stream of protocol
-tunneled over SSH (e.g. SQL over SSH).
 
 So SSH tunneling is just a way to transport arbitrary data with a dedicated data stream (tunnel) inside an existing SSH session. This can be
 achieved with either local port forwarding, remote port forwarding, dynamic port forwarding, or by creating a TUN/TAP tunnel. Let's take a
@@ -194,7 +187,7 @@ Or using [netcat](https://en.wikipedia.org/wiki/Netcat) as:
 
 `bash $ ssh -o ProxyCommand="nc -X 5 -x localhost:9050 %h %p" user@<remote_server> `
 
-## Security concerns of SSH tunnelling
+## Security concerns of SSH tunneling
 
 So far, we have covered the advantages of SSH tunneling and how it makes it easy to connect to remote services, which otherwise would not be
 possible due to network configurations and restrictions. But this power of SSH tunneling is also often misused by malicious users. Hiding
