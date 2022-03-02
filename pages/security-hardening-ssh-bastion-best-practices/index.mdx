@@ -1,6 +1,6 @@
 ---
-title: "SSH Bastion host best practices: How to Build and Deploy a Security-Hardened SSH Bastion Host"
-description: Learn best practices to build and deploy a security-hardened SSH bastion host based on OpenSSH server.
+title: "14 Best Practices to Secure SSH Bastion Host"
+description: Learn 14 best practices to build and deploy a security-hardened SSH bastion host based on OpenSSH server.
 articleTitle: SSH Bastion Host Best Practices
 date: "2022-01-13"
 author: Sakshyam Shah
@@ -15,64 +15,58 @@ layout: blogArticle
 
 import { EmailSubscribeViolet } from "components/EmailSubscribe";
 
-SSH bastion hosts are an indispensable security enforcement stack for secure infrastructure access. Every security compliance standard that deals with remote infrastructure access (e.g., FedRAMP AC-17 - Remote Access, HIPAA §164.312(a)(1) - Access control, SOC2 CC6.1 - Manage Points of Access) mandates preventing direct network access to the servers and APIs. Although it is relatively easy to deploy a bastion host in your infrastructure, it should be noted that securing a bastion host requires careful consideration from design to deployment. After all, bastion hosts are the first target for attackers looking to compromise access to infrastructure.
+Although it is relatively easy to deploy a bastion host in your infrastructure, securing a bastion host requires careful consideration from design to deployment. After all, bastion hosts are the first target for attackers looking to compromise access to infrastructure. The core concept of security hardening a bastion host is to run a bastion server with minimal components and reduce the attack surface as much as possible. The placement of bastion hosts in the infrastructure also plays an important role because an improper network configuration may allow attackers to completely bypass the bastion host and directly reach their target server. Additionally, insufficient resources may give attackers the chance to execute Denial of Service attacks which may cause service downtime. 
 
-This blog post focuses on following best practices on building and deploying a secure SSH bastion server based on OpenSSH. If you are looking for a quick guide on creating an SSH bastion, check our previous blog post on [setting up an SSH Bastion](https://goteleport.com/blog/ssh-bastion-host/).
+
+This blog post focuses on following best practices on building and deploying a secure SSH bastion server based on OpenSSH. If you are looking for a quick guide on creating an SSH bastion, check our previous blog post on [setting up an SSH Bastion](https://goteleport.com/blog/ssh-bastion-host/). If you want to learn more about the security importance of bastion hosts, read our blog on [ why bastion hosts are an indispensable security enforcement stack for secure infrastructure access](https://goteleport.com/blog/do-we-still-need-a-bastion/).
+
+
 
 ## Bastion host attack surface
-
 Adversaries can either compromise a bastion host (e.g. OS and network exploitation) or find a network policy misconfiguration that allows bypassing the bastion host entirely. Thus, security of both the server deployed as a bastion host and the network in which the bastion host will be placed must be carefully considered as an attack surface for bastion host exploitation.
 
 Since the services behind the bastion are configured to trust incoming connections from the bastion host, principles of zero trust networking should be applied so that incoming connections from the bastion host are further verified, which would help in case the bastion host is already compromised.
 
-## Designing and building the bastion host
 
-The end capability of the bastion host depends on the use case of infrastructure access. For example, access requirements via bastion for a database server can be different than those for a Windows server. For generic use cases, Linux OS with an OpenSSH server is one of the popular choices for setting up a bastion host. OpenSSH lets you connect to any service with SSH and port forwarding features, making it the most versatile solution. However, this setup is pretty limited if you want protocol-level control and visibility.
+## 14 best practices to secure bastion host
+Below are the 14 best practices to secure bastion hosts, including hardening server OS, hardening OpenSSH authentication and cryptographic operations, and deploying the host with high availability. 
 
-Overall, the core concept of security hardening a bastion host is to run a bastion server with minimal components and reduce the attack surface as much as possible. As you will find below, most of the controls required to secure bastion hosts are, in fact, the same as hardening an operating system. Below, we present a few important things to consider while designing a bastion host.
-
-### Picking up the right Server OS
-
-Quickly checking with `$ dpkg-query -W | wc -l` command shows there are 567 packages pre-installed in a fresh AWS Ubuntu 20.04 LTS server image. Similarly, `$ yum list installed | wc -l` command shows there are 453 packages pre-installed in a fresh AWS Amazon Linux 2 server image. Your bastion host may not need all of these packages! It is a good practice to review all of the pre-installed packages and remove those that are not required for your bastion host.
+### 1. Pick up the right server OS
+Quickly checking with `$ dpkg-query -W | wc -l` command shows there are 567 packages pre-installed in a fresh AWS Ubuntu 20.04 LTS server image. Similarly, `$ yum list installed | wc -l` command shows there are 453 packages pre-installed in a fresh AWS Amazon Linux 2 server image. Your bastion host may not need all of these packages! It is a good practice to review all of the pre-installed packages and remove those that are not required for your bastion host. 
 
 A rule of thumb is to use minimal OS images and installation packages as required. For example, refer to these websites that should guide you in installing a minimal OS: [ubuntu minimal](https://help.ubuntu.com/community/Installation/MinimalCD), [debian netinst](https://www.debian.org/CD/netinst/), and [centos](https://wiki.centos.org/Download). As for picking up the right distribution, understand that any system is as secure as how properly you know the system and configure it. If you or your team are comfortable with any particular OS, go for it.
 
-### Limiting active services that run on the OS
-
-Once the right server OS is used, ensure that only required services are installed and run. For example, an SSH bastion host should only be running `sshd` daemon and nothing else. Running unnecessary services only increases the attack surface of the bastion host. To quickly view active and running services under Systemd, use the following `systemctl` command:
-
+### 2. Limit active services that run on the OS 
+Once the right server OS is used, ensure that only required services are installed and run. For example, an SSH bastion host should only be running `sshd` daemon and nothing else. Running unnecessary services only increases the attack surface of the bastion host.
+To quickly view active and running services under **Systemd**, use the following `systemctl` command: 
 ```
 $ systemctl list-units --type=service --state=running
 ```
+Alternatively, you can also use the process status command [`ps`](https://man7.org/linux/man-pages/man1/ps.1.html) such as `$ ps aux`, [`top`](https://man7.org/linux/man-pages/man1/top.1.html), or [`htop`](https://man7.org/linux/man-pages/man1/htop.1.html) commands to list running processes. These commands help you identify all the running processes and services and stop or remove them as required.
 
-Alternatively, you can also use the process status command `ps` such as `$ ps aux`, `top`, or `htop` commands to list running processes. These commands help you identify all the running processes and services and stop or remove them as required.
 
-### Lock down OS networking capabilities
-
+### 3. Lock down OS networking capabilities
 Similar to limiting active services on the bastion host, limit networking capabilities and lock down all the ports with a deny all strategy. In the case of the bastion host configured with OpenSSH, only allow ingress to SSH (port 22 or a custom port if the default is changed) and egress to the upstream SSH server. For managing ingress and egress traffic, nothing beats the power of the native [netfilter iptables](https://www.netfilter.org/projects/iptables/index.html). A quick check with the iptables command `$ iptables -L` will show you if the network firewall has been configured. To only allow SSH from a specific IP address, use the following `iptables` command:
-
 ```
 $ iptables -A INPUT -p tcp -s your-ip-address --dport 22 -j ACCEPT
 ```
 
-If you prefer simplicity, you can also use [UFW](https://help.ubuntu.com/community/UFW), which vastly simplifies iptables management. Another handy Linux tool to view open network ports is `lsof`. `lsof` lists the process ID of a service that is listening on a particular port. For example, to list open TCP ports that are in a listening state, use the following `lsof` command:
+If you prefer simplicity, you can also use [UFW](https://help.ubuntu.com/community/UFW), which vastly simplifies iptables management. Another handy Linux tool to view open network ports is [`lsof`](https://man7.org/linux/man-pages/man8/lsof.8.html). `lsof` lists the process ID of a service that is listening on a particular port. For example, to list open TCP ports that are in a listening state, use the following `lsof` command:
 
 ```
 $ lsof -i -P -n | grep LISTEN
 ```
 
-### Limiting user accounts and restricting account capabilities
 
-In a bastion host, sparingly create extra user accounts. If you need a user account besides an administrative root account, enforce access controls using [SELinux](https://www.redhat.com/en/topics/linux/what-is-selinux) or [Capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html). If a user account is required to run a specific service, make sure to disable shell access. This can be done in ubuntu using the `usermod` command:
-
+### 4. Limit user accounts and restricting account capabilities
+In a bastion host, sparingly create extra user accounts. If you need a user account besides an administrative root account, enforce access controls using [SELinux](https://www.redhat.com/en/topics/linux/what-is-selinux) or [Capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html). If a user account is required to run a specific service, make sure to  disable shell access. This can be done in ubuntu using the `usermod` command: 
 ```
 $ usermod <username> -s /sbin/nologin
 ```
 
-### Implement access logging
 
-OS authentication events are logged by default. You can check auth events in Debian systems under `/var/log/auth.log` and `/var/log/secure` on centos/RHEL systems.
-
+### 5. Implement access logging
+OS authentication events are logged by default. You can check auth events in Debian systems under `/var/log/auth.log` and `/var/log/secure` on centos/RHEL systems. 
 ```
 [root@centos ~]# tail /var/log/secure
 Dec 30 06:21:51 centos sshd[1287]: Server listening on 0.0.0.0 port 22.
@@ -83,29 +77,25 @@ Dec 30 06:22:21 centos sshd[5012]: pam_unix(sshd:session): session opened for us
 Dec 30 06:41:39 centos sshd[13532]: error: kex_exchange_identification: Connection closed by remote host
 ```
 
-These logs are limited to authentication events only, and if you want to get more detailed access and accounting events, `auditd` is a popular choice. `auditd` hooks to the syscall and logs system call events such as opening and closing files. Since everything is a file on the Linux system, it means `auditd` can capture process, networking, and file events.
+These logs are limited to authentication events only, and if you want to get more detailed access and accounting events, [`auditd`](https://linux.die.net/man/8/auditd) is a popular choice. `auditd` hooks to the syscall and logs system call events such as opening and closing files. Since everything is a file on the Linux system, it means `auditd` can capture process, networking, and file events. 
 
 One of the challenges with logging events is related to log storage. Storing logs on the same server is risky since root users can alter them, or the files can be destroyed during system crashes. These logs should be shipped to an external centralized logging server. [ELK stack](https://www.elastic.co/what-is/elk-stack) and [Graylog](https://www.graylog.org/products/open-source) are popular choices for storing access logs.
 
-### Limit the requirement to log in to bastion host
 
-It is easier to lock down the OS when you limit the requirement for users to log in to the bastion host. For instance, the requirement to troubleshoot and debug servers is one of the reasons SSH access is preferred. It may be tempting for an administrator to SSH into a bastion host for debugging and troubleshooting purposes, but it creates security risks because allowing SSH access opens up one additional attack vector.
+### 6. Limit the requirement to log in to bastion host
+It is easier to lock down the OS when you limit the requirement for users to log in to the bastion host. For instance, the requirement to troubleshoot and debug servers is one of the reasons SSH access is preferred. It may be tempting for an administrator to SSH into a bastion host for debugging and troubleshooting purposes, but it creates security risks because allowing SSH access opens up one additional attack vector. 
 
 To overcome this, implement proper debug logging into the remote log server and prioritize immutable infrastructure principles. To patch the server, rather than updating the bastion host during runtime, create a new bastion image with the required patch and replace the old bastion host with the new updated one.
 
-### Implement a Host Intrusion Detection System
 
+### 7. Implement a Host Intrusion Detection System (HIDS)
 Host Intrusion Detection Systems (HIDS) are best for detecting anomalies in operating systems. Most modern IDS also help enforce security policies and implement security baselines. [OSSEC](https://www.ossec.net/) and [Wazuh](https://wazuh.com/) are two popular open-source projects for host security monitoring.
 
-## Hardening OpenSSH server
 
-Since we are focusing on a bastion host based on the OpenSSH server, below we list some of the best practices to harden the OpenSSH server. If your bastion host is not based on the OpenSSH server, follow best practices to harden the configurations of that server.
-
-### Update default configurations that may pose security risks
-
+### 8. Harden default OpenSSH configurations that may pose security risks
 In the `sshd_config` file found under `/etc/ssh/sshd_config`, update the defaults to disable root login, disable password authentication, configure an idle timeout, and whitelist SSH users as shown below.
 
-```
+```bash
 # Disable root ssh acces
 PermitRootLogin no
 
@@ -120,60 +110,53 @@ ClientAliveInterval <value in seconds>
 AllowUsers <user names>
 ```
 
-### Safe cryptographic operations
-
+### 9. Use safe OpenSSH cryptographic operations
 OpenSSH supports many cryptographic algorithms that may be outdated or vulnerable. Following are a few tasks to ensure our OpenSSH is configured with the most robust cryptographic algorithms and operations.
 
-- Regenerate server host keys.
-  If your bastion host image is derived/cloned from the existing server, ensure that the server host keys are regenerated because a host key should be unique for each SSH server instance. To do this, remove any existing host keys with the command `rm /etc/ssh/ssh_host_*` then regenerate host keys with the following commands:
+- **Regenerate server host keys.**
+If your bastion host image is derived/cloned from the existing server, ensure that the server host keys are regenerated because a host key should be unique for each SSH server instance. To do this, remove any existing host keys with the command `rm /etc/ssh/ssh_host_*` then regenerate host keys with the following commands: 
+```
+$ ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
+$ ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+```
 
-  ```
-  $ ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
-  $ ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
-  ```
+- **Deactivate Diffie-Hellman short moduli.**
+Diffie-Hellman (DH) key exchange protocol is used to exchange shared secret (encryption key) between client and server. Short moduli (smaller prime numbers) are vulnerable to the [Logjam attack](https://weakdh.org/). To counter this with respect to OpenSSH configuration, Mozilla suggests [deactivating short moduli](https://infosec.mozilla.org/guidelines/openssh) with the command:
+```
+$ awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.tmp && mv /etc/ssh/moduli.tmp /etc/ssh/moduli`
+```
+This will ensure that DH moduli less than 3071 bits are never used for DH exchange. 
 
-- Deactivate Diffie-Hellman short moduli.
-  Diffie-Hellman (DH) key exchange protocol is used to exchange shared secret (encryption key) between client and server. Short moduli (smaller prime numbers) are vulnerable to the [Logjam attack](https://weakdh.org/). To counter this with respect to OpenSSH configuration, Mozilla suggests [deactivating short moduli](https://infosec.mozilla.org/guidelines/openssh) with the command:
+- **Use strong ciphers and algorithms.**
+Although recent versions of OpenSSH support strong algorithms, ensure that `CHACHA20` and `curve25519` are preferred to ensure the safest cryptographic operation. 
 
-  ```
-  $ awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.tmp && mv /etc/ssh/moduli.tmp /etc/ssh/moduli
-  ```
-
-  This will ensure that DH moduli less than 3071 bits are never used for DH exchange.
-
-- Use strong ciphers and algorithms.
-  Although recent versions of OpenSSH support strong algorithms, ensure that `CHACHA20` and `curve25519` are preferred to ensure the safest cryptographic operation.
-
-### Use second-factor authentication
-
+### 10. Implement two-factor authentication
 Probably the simplest yet most effective control is to implement a second factor authentication in your SSH server. Google’s [Google Authenticator PAM](https://goteleport.com/blog/how-to-setup-ssh-2fa/) module is the popular choice. But it only supports TOTP-based authentication. For more robust authentication, opt for solutions that enable authentication based on [U2F](https://www.yubico.com/authentication-standards/fido-u2f/) or [WebAuthn](https://en.wikipedia.org/wiki/WebAuthn) for SSH.
 
-### Use certificates for user authentication
-
+### 11. Use certificates for user authentication
 Certificate-based authentication for SSH solves key management issues that come with key-based authentication and adds the additional security of time-scoped access and the ability to revoke access on the fly. While maintaining a Certificate Authority is equally challenging, there are solutions that completely automate CA management for SSH. Read our previous article on how to properly implement [certificate-based authentication for SSH](https://goteleport.com/blog/ssh-certificates/).
 
-## Deploying the bastion host
 
-The placement of bastion hosts in the infrastructure plays an important role in the overall security of bastion hosts. Improper network configuration may allow attackers to completely bypass the bastion host and directly reach their target server. Additionally, insufficient resources may give attackers the chance to execute Denial of Service attacks which may cause service downtime.
 
-### Ensuring high availability of the bastion host
-
+### 12. Ensure high availability of the bastion host
 Adhering to the Confidentiality, Integrity, and Availability (CIA) triad, security controls should enhance the availability of the service — not vice versa. Since access via bastion hosts is the only way in, the availability of bastion hosts plays a critical role. Ensure adequate server and network resources are allocated for the bastion host. A multi-node deployment and setting up multiple availability zones are effective ways to ensure the availability of bastion hosts.
 
-### Addressing latency issues
 
-Nobody likes slow access to remote servers. In fact, latency issues are one of the reasons many users prefer fast access solutions over secure solutions. If your teams are distributed, latency can be a serious issue for users who access infrastructure from different geographical zones. Since the network route within cloud providers is usually fast, the latency problem can be solved by placing the bastion host closer to the user’s nearest cloud availability zone.
+### 13. Address latency issues 
+Nobody likes slow access to remote servers. In fact, latency issues are one of the reasons many users prefer fast access solutions over secure solutions. If your teams are distributed, latency can be a serious issue for users who access infrastructure from different geographical zones. Since the network route within cloud providers is usually fast, the latency problem can be solved by placing the bastion host closer to the user's nearest cloud availability zone. 
 
-### Protection from DDOS
 
-Since bastion hosts are exposed to the internet, they are a good target for Distributed Denial of Service (DDOS) attacks. Protection from DDOS attacks is not an easy task, and if the attack vector includes flooding the service with multiple gigabits, chances are your bastion host will not survive them unless your infrastructure sits behind a DDOS protection service. Microsoft reported they were recently the victim of [2.4 TBPS DDOS attack](https://azure.microsoft.com/en-us/blog/business-as-usual-for-azure-customers-despite-24-tbps-ddos-attack/). If your bastion provides access to mission-critical service, it is worth purchasing a DDOS protection service.
+### 14. Protection from DDOS
+Since bastion hosts are usually exposed to the internet, they are a good target for Distributed Denial of Service (DDOS) attacks. Protection from DDOS attacks is not an easy task, and if the attack vector includes flooding the service with multiple gigabits, chances are your bastion host will not survive them unless your infrastructure sits behind a DDOS protection service. Microsoft reported they were recently the victim of [2.4 TBPS DDOS attack](https://azure.microsoft.com/en-us/blog/business-as-usual-for-azure-customers-despite-24-tbps-ddos-attack/). If your bastion provides access to mission-critical service, it is worth purchasing a DDOS protection service.
 
 <EmailSubscribeViolet />
 
 ## Conclusion
+Overall, the core concept of security hardening a bastion host is to run a bastion server with minimal components and reduce the attack surface as much as possible. In this post, we walked you through designing, building, and deploying a bastion host based on an OpenSSH server. 
 
-We walked you through designing, building, and deploying a bastion host based on an OpenSSH server in this post. The important things to consider are running the bastion host with minimal essential services, user accounts, and networking capabilities and deploying the bastion host as a highly available server.
+Although this setup is pretty versatile, its capabilities are limited if you want protocol-level control and visibility. We built [Teleport](https://goteleport.com/) to solve this problem and give a deep protocol-level control to infrastructure access. Teleport is a modern bastion server and allows unifying access for SSH and Windows servers, Kubernetes clusters, web applications, and databases across all environments. Further, Teleport is an open-source project, and everything is [designed and developed in the open](https://github.com/gravitational/teleport). Find out more [here](https://goteleport.com/case-study/) about how Teleport is used in production. 
 
-Although this setup is pretty versatile, we mentioned that its capabilities are limited if you want protocol-level control and visibility. We built [Teleport](https://goteleport.com/) to solve this problem and give a deep protocol-level control to infrastructure access. Teleport is a modern bastion server and allows unifying access for SSH and Windows servers, Kubernetes clusters, web applications, and databases across all environments. Further, Teleport is an open-source project, and everything is [designed and developed in the open](https://github.com/gravitational/teleport). Find out more [here](https://goteleport.com/case-study/) about how Teleport is used in production.
-
+<br />
 **Get Started With Teleport** - https://goteleport.com/docs/getting-started/linux-server/
+
+
